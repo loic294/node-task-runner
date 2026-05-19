@@ -1,10 +1,11 @@
 {
   "name": "node-task-runner",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "Run Node.js tasks from mounted folders on cron schedules with a minimal web UI",
   "type": "module",
   "main": "src/server.js",
   "scripts": {
+    "setup-hooks": "git config core.hooksPath .githooks && chmod +x .githooks/pre-commit",
     "start": "node src/server.js",
     "dev": "node --watch src/server.js"
   },

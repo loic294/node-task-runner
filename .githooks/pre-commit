@@ -1,0 +1,10 @@
+#!/usr/bin/env zsh
+
+# Bump package version for each commit and stage updated package files.
+node scripts/bump-version-precommit.js
+if [[ $? -ne 0 ]]; then
+  echo "pre-commit: version bump failed"
+  exit 1
+fi
+
+git add package.json package-lock.json

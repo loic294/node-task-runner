@@ -64,6 +64,14 @@ npm start
 http://localhost:3000
 ```
 
+### Enable pre-commit version bump
+
+This project bumps `package.json` patch version on every commit via a local Git pre-commit hook.
+
+```bash
+npm run setup-hooks
+```
+
 ## Run with Docker Compose
 
 Pull the published image:

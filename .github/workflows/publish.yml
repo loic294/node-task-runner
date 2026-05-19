@@ -9,7 +9,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
   packages: write
 
 jobs:
@@ -18,19 +18,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
-      - name: Auto bump patch version
-        if: github.ref == 'refs/heads/main' && github.actor != 'github-actions[bot]'
-        shell: bash
-        run: |
-          npm version patch --no-git-tag-version
-          VERSION=$(node -p "require('./package.json').version")
-
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add package.json
-          git commit -m "chore: bump version to v${VERSION} [skip ci]"
-          git push
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
@@ -65,12 +52,7 @@ jobs:
           tags: |
             type=raw,value=latest,enable={{is_default_branch}}
             type=raw,value=v${{ steps.version.outputs.version }},enable={{is_default_branch}}
-            type=raw,value=v${{ steps.version.outputs.major }}.${{ steps.version.outputs.minor }},enable={{is_default_branch}}
-            type=raw,value=v${{ steps.version.outputs.major }},enable={{is_default_branch}}
-            type=raw,value=main,enable={{is_default_branch}}
-            type=ref,event=branch
             type=ref,event=tag
-            type=sha
           labels: |
             org.opencontainers.image.version=${{ steps.version.outputs.version }}
             org.opencontainers.image.revision=${{ github.sha }}
