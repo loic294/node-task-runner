@@ -2,7 +2,7 @@
 
 Minimal Dockerized app that discovers Node.js tasks from a mounted volume and runs them on cron schedules.
 
-<img width="2234" height="1182" alt="CleanShot 2026-05-19 at 16 35 21@2x" src="https://github.com/user-attachments/assets/cbc705e1-2101-4b2e-97dc-0f1be5d00f3b" />
+<img alt="Screenshot of the task runner" src="https://github.com/user-attachments/assets/cbc705e1-2101-4b2e-97dc-0f1be5d00f3b" style="max-width: 100%; height: auto;" />
 
 ## Features
 
@@ -21,18 +21,24 @@ Each subfolder inside volumes/tasks represents one task.
 
 Example:
 
-volumes/tasks/example-task/config.yaml
-volumes/tasks/example-task/task.js
+```text
+volumes/tasks/example-task/
+	config.yaml
+	task.js
+```
 
-config.yaml
-
+```yaml
+# volumes/tasks/example-task/config.yaml
 name: Example task
-schedule: "_/2 _ \* \* \*"
+schedule: "*/5 * * * *"
+```
 
-task.js
-
+```js
+// volumes/tasks/example-task/task.js
 console.log("Task started", new Date().toISOString());
 console.log("Task finished");
+process.exit(0);
+```
 
 Use Node process exit code to report success/failure (0 is success).
 
@@ -40,60 +46,64 @@ Use Node process exit code to report success/failure (0 is success).
 
 1. Install dependencies.
 
+```bash
 npm install
+```
 
-2. Create your task folders under volumes/tasks.
+2. Create your task folders under `volumes/tasks`.
 
-3. Start app.
+3. Start the app.
 
+```bash
 npm start
+```
 
-4. Open:
+4. Open the UI:
 
+```text
 http://localhost:3000
+```
 
 ## Run with Docker Compose
 
-docker compose up --build
+Pull the published image:
+
+```bash
+docker pull ghcr.io/loic294/node-task-runner:latest
+```
+
+Create a docker-compose.yml file:
+
+```yaml
+services:
+	app:
+		image: ghcr.io/loic294/node-task-runner:latest
+		ports:
+			- "3000:3000"
+		environment:
+			PORT: "3000"
+			TASKS_DIR: /app/volumes/tasks
+			LOGS_DIR: /app/volumes/logs
+			DATA_DIR: /app/volumes/data
+			DISCOVERY_INTERVAL_MS: "30000"
+			RETENTION_DAYS: "90"
+			MAX_LOG_BYTES: "200000"
+			TASK_TIMEOUT_MS: "0"
+		volumes:
+			- ./volumes/tasks:/app/volumes/tasks:ro
+			- ./volumes/logs:/app/volumes/logs
+			- ./volumes/data:/app/volumes/data
+		restart: unless-stopped
+```
+
+Start the stack:
+
+```bash
+docker compose up -d
+```
 
 Mounted paths:
 
 - volumes/tasks -> /app/volumes/tasks (read-only)
 - volumes/logs -> /app/volumes/logs
 - volumes/data -> /app/volumes/data
-
-## API summary
-
-- GET /api/tasks
-- PUT /api/tasks/:taskId
-- POST /api/tasks/:taskId/run
-- GET /api/tasks/:taskId/runs
-- GET /api/tasks/:taskId/runs/:runId
-- GET /api/tasks/:taskId/runs/:runId/logs
-- GET /api/health
-
-## Retention
-
-Run metadata and log files older than 90 days are cleaned automatically.
-
-## GHCR publishing
-
-Workflow file: .github/workflows/publish.yml
-
-On pushes to main and version tags, the image is published to:
-
-ghcr.io/<owner>/<repo>
-
-### Auto version tags
-
-The workflow automatically tags images with:
-
-- latest (default branch)
-- main (default branch)
-- v<package.json version> (for example v0.1.0)
-- v<major>.<minor> (for example v0.1)
-- v<major> (for example v0)
-- git tag ref (when pushing a git tag)
-- sha-<commit>
-
-To publish a new semantic version tag series, update version in package.json and push to main.
