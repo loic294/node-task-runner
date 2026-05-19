@@ -1,0 +1,2 @@
+name: Move unfinished Todoist todos to the next day
+schedule: '*/7 * * * *'

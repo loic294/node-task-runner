@@ -81,3 +81,17 @@ Workflow file: .github/workflows/publish.yml
 On pushes to main and version tags, the image is published to:
 
 ghcr.io/<owner>/<repo>
+
+### Auto version tags
+
+The workflow automatically tags images with:
+
+- latest (default branch)
+- main (default branch)
+- v<package.json version> (for example v0.1.0)
+- v<major>.<minor> (for example v0.1)
+- v<major> (for example v0)
+- git tag ref (when pushing a git tag)
+- sha-<commit>
+
+To publish a new semantic version tag series, update version in package.json and push to main.
