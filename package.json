@@ -1,0 +1,20 @@
+{
+  "name": "node-task-runner",
+  "version": "0.1.0",
+  "description": "Run Node.js tasks from mounted folders on cron schedules with a minimal web UI",
+  "type": "module",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "js-yaml": "^4.1.0",
+    "node-cron": "^3.0.3",
+    "uuid": "^11.0.3"
+  }
+}

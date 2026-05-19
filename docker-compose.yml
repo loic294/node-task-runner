@@ -1,0 +1,19 @@
+services:
+  app:
+    build: .
+    image: node-task-runner:local
+    ports:
+      - "3000:3000"
+    environment:
+      PORT: "3000"
+      TASKS_DIR: /app/volumes/tasks
+      LOGS_DIR: /app/volumes/logs
+      DATA_DIR: /app/volumes/data
+      DISCOVERY_INTERVAL_MS: "10000"
+      RETENTION_DAYS: "90"
+      TASK_TIMEOUT_MS: "0"
+    volumes:
+      - ./volumes/tasks:/app/volumes/tasks:ro
+      - ./volumes/logs:/app/volumes/logs
+      - ./volumes/data:/app/volumes/data
+    restart: unless-stopped

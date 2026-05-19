@@ -1,0 +1,2 @@
+name: Example task v2
+schedule: '*/5 * * * *'
