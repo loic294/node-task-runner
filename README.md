@@ -2,6 +2,8 @@
 
 Minimal Dockerized app that discovers Node.js tasks from a mounted volume and runs them on cron schedules.
 
+<img width="2234" height="1182" alt="CleanShot 2026-05-19 at 16 35 21@2x" src="https://github.com/user-attachments/assets/cbc705e1-2101-4b2e-97dc-0f1be5d00f3b" />
+
 ## Features
 
 - Auto-discovery of task folders from a mounted directory.
