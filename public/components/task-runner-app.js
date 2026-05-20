@@ -488,8 +488,8 @@ class TaskRunnerApp extends HTMLElement {
           <h3>${task.name}</h3>
           <button class="edit-toggle" type="button">${renderIcon("edit")}<span>Edit</span></button>
         </div>
-        <p class="meta">Folder: ${task.id}</p>
-        <p class="meta">Status: ${this.statusBadge(task)}</p>
+        <p class="meta"><b>Folder:</b> ${task.id}</p>
+        <p class="meta"><b>Status:</b> ${this.statusBadge(task)}</p>
         <p class="meta"><b>Next run:</b> ${this.formatNextRun(task.nextRunAt)}</p>
         <div class="card-actions">
           <button class="primary run">${renderIcon("play")}<span>Run now</span></button>
