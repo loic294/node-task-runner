@@ -13,6 +13,7 @@ class TaskRunnerApp extends HTMLElement {
         enabled: false,
         taskId: null,
         runId: null,
+        autoScroll: true,
       },
     };
 
@@ -196,6 +197,7 @@ class TaskRunnerApp extends HTMLElement {
         enabled: true,
         taskId,
         runId,
+        autoScroll: true,
       },
     });
 
@@ -204,6 +206,7 @@ class TaskRunnerApp extends HTMLElement {
     }, 2000);
 
     this.updateLiveTraceButton();
+    this.updateAutoScrollButton();
   }
 
   stopLiveTrace() {
@@ -221,6 +224,7 @@ class TaskRunnerApp extends HTMLElement {
         },
       });
       this.updateLiveTraceButton();
+      this.updateAutoScrollButton();
     }
   }
 
@@ -238,6 +242,26 @@ class TaskRunnerApp extends HTMLElement {
     button.innerHTML = `${renderIcon("activity")}<span>Start live trace</span>`;
   }
 
+  updateAutoScrollButton() {
+    const button = this.querySelector("#autoScrollToggle");
+    if (!button) {
+      return;
+    }
+
+    button.textContent = this.state.liveTrace.autoScroll
+      ? "Disable auto-scroll"
+      : "Enable auto-scroll";
+  }
+
+  scrollRunLogToBottom() {
+    const logContainer = this.querySelector(".run-detail-logs");
+    if (!logContainer) {
+      return;
+    }
+
+    logContainer.scrollTop = logContainer.scrollHeight;
+  }
+
   async fetchRunDetail(taskId, runId) {
     const logResp = await fetch(`/api/tasks/${taskId}/runs/${runId}/logs`);
     const payload = await logResp.json();
@@ -251,6 +275,17 @@ class TaskRunnerApp extends HTMLElement {
     try {
       const payload = await this.fetchRunDetail(taskId, runId);
       const run = payload.run;
+
+      if (
+        run.status === "running" &&
+        !(
+          this.state.liveTrace.enabled &&
+          this.state.liveTrace.taskId === taskId &&
+          this.state.liveTrace.runId === runId
+        )
+      ) {
+        this.startLiveTrace(taskId, runId);
+      }
 
       const statusEl = this.querySelector("#runStatus");
       const startedEl = this.querySelector("#runStarted");
@@ -290,8 +325,21 @@ class TaskRunnerApp extends HTMLElement {
         traceToggle.classList.toggle("hidden", !isRunning);
       }
 
+      const autoScrollToggle = this.querySelector("#autoScrollToggle");
+      if (autoScrollToggle) {
+        autoScrollToggle.classList.toggle("hidden", run.status !== "running");
+        this.updateAutoScrollButton();
+      }
+
       if (run.status !== "running") {
         this.stopLiveTrace();
+      } else if (
+        this.state.liveTrace.enabled &&
+        this.state.liveTrace.taskId === taskId &&
+        this.state.liveTrace.runId === runId &&
+        this.state.liveTrace.autoScroll
+      ) {
+        this.scrollRunLogToBottom();
       }
     } catch (error) {
       if (!options.background) {
@@ -597,6 +645,17 @@ class TaskRunnerApp extends HTMLElement {
       const payload = await this.fetchRunDetail(taskId, runId);
 
       const run = payload.run;
+      if (
+        run.status === "running" &&
+        !(
+          this.state.liveTrace.enabled &&
+          this.state.liveTrace.taskId === taskId &&
+          this.state.liveTrace.runId === runId
+        )
+      ) {
+        this.startLiveTrace(taskId, runId);
+      }
+
       const isRunning = run.status === "running";
       return `
         <article class="card run-detail-card">
@@ -605,13 +664,20 @@ class TaskRunnerApp extends HTMLElement {
               <h2>Run ${run.id}</h2>
               ${
                 isRunning
-                  ? `<button id="liveTraceToggle" type="button">${
-                      this.state.liveTrace.enabled &&
-                      this.state.liveTrace.taskId === taskId &&
-                      this.state.liveTrace.runId === runId
-                        ? `${renderIcon("pause")}<span>Stop live trace</span>`
-                        : `${renderIcon("activity")}<span>Start live trace</span>`
-                    }</button>`
+                  ? `<div class="run-detail-controls">
+                      <button id="liveTraceToggle" type="button">${
+                        this.state.liveTrace.enabled &&
+                        this.state.liveTrace.taskId === taskId &&
+                        this.state.liveTrace.runId === runId
+                          ? `${renderIcon("pause")}<span>Stop live trace</span>`
+                          : `${renderIcon("activity")}<span>Start live trace</span>`
+                      }</button>
+                      <button id="autoScrollToggle" type="button">${
+                        this.state.liveTrace.autoScroll
+                          ? "Disable auto-scroll"
+                          : "Enable auto-scroll"
+                      }</button>
+                    </div>`
                   : ""
               }
             </div>
@@ -677,6 +743,16 @@ class TaskRunnerApp extends HTMLElement {
 
     this.bindEvents();
     this.updateFeedback();
+
+    if (
+      route.name === "run" &&
+      this.state.liveTrace.enabled &&
+      this.state.liveTrace.taskId === route.taskId &&
+      this.state.liveTrace.runId === route.runId &&
+      this.state.liveTrace.autoScroll
+    ) {
+      this.scrollRunLogToBottom();
+    }
   }
 
   bindEvents() {
@@ -729,6 +805,29 @@ class TaskRunnerApp extends HTMLElement {
         await this.refreshRunDetail(route.taskId, route.runId, {
           background: true,
         });
+      };
+    }
+
+    const autoScrollToggle = this.querySelector("#autoScrollToggle");
+    if (autoScrollToggle) {
+      autoScrollToggle.onclick = () => {
+        const route = this.state.route;
+        if (route.name !== "run") {
+          return;
+        }
+
+        const autoScrollEnabled = !this.state.liveTrace.autoScroll;
+        this.setState({
+          liveTrace: {
+            ...this.state.liveTrace,
+            autoScroll: autoScrollEnabled,
+          },
+        });
+        this.updateAutoScrollButton();
+
+        if (autoScrollEnabled) {
+          this.scrollRunLogToBottom();
+        }
       };
     }
 

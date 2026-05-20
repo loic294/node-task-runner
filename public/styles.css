@@ -365,6 +365,14 @@ input {
   margin-bottom: 12px;
 }
 
+.run-detail-controls {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
 .run-detail-logs {
   border-top: 1.5px solid #d1d5db;
   padding: 16px 20px 20px;
