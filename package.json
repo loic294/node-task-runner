@@ -1,6 +1,6 @@
 {
   "name": "node-task-runner",
-  "version": "0.1.5",
+  "version": "0.1.6",
   "description": "Run Node.js tasks from mounted folders on cron schedules with a minimal web UI",
   "type": "module",
   "main": "src/server.js",
