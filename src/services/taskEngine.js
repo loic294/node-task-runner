@@ -239,12 +239,31 @@ export class TaskEngine {
       throw new Error("Invalid cron schedule");
     }
 
+    const hasConfigChange =
+      task.name !== nextName || task.schedule !== nextSchedule;
+    if (!hasConfigChange) {
+      return { ...task };
+    }
+
+    const previousConfig = {
+      name: task.name,
+      schedule: task.schedule,
+    };
+
     const data = {
       name: nextName,
       schedule: nextSchedule,
     };
 
     await fsp.writeFile(task.configPath, yaml.dump(data), "utf8");
+
+    try {
+      await this.commitTaskConfigChange(taskId, task.configPath);
+    } catch (error) {
+      await fsp.writeFile(task.configPath, yaml.dump(previousConfig), "utf8");
+      await runCommand("git", ["add", "--", toGitPath(path.relative(process.cwd(), task.configPath))]);
+      throw error;
+    }
 
     task.name = nextName;
     task.schedule = nextSchedule;
@@ -254,6 +273,55 @@ export class TaskEngine {
     await this.persistState();
 
     return { ...task };
+  }
+
+  async commitTaskConfigChange(taskId, configPath) {
+    const insideWorkTree = await runCommand("git", [
+      "rev-parse",
+      "--is-inside-work-tree",
+    ]);
+
+    if (!insideWorkTree.ok || insideWorkTree.stdout.trim() !== "true") {
+      throw new Error("Config updated but not inside a git repository");
+    }
+
+    const relativePath = path.relative(process.cwd(), configPath);
+    const gitPath = toGitPath(relativePath);
+
+    const addResult = await runCommand("git", ["add", "--", gitPath]);
+    if (!addResult.ok) {
+      throw new Error(`Config updated but failed to stage file: ${addResult.stderr.trim()}`);
+    }
+
+    const stagedDiffResult = await runCommand("git", [
+      "diff",
+      "--cached",
+      "--quiet",
+      "--",
+      gitPath,
+    ]);
+
+    if (stagedDiffResult.code === 0) {
+      return;
+    }
+
+    if (stagedDiffResult.code !== 1) {
+      throw new Error(
+        `Config updated but failed to inspect staged diff: ${stagedDiffResult.stderr.trim()}`,
+      );
+    }
+
+    const commitResult = await runCommand("git", [
+      "commit",
+      "-m",
+      `chore(task): update ${taskId} config`,
+      "--",
+      gitPath,
+    ]);
+
+    if (!commitResult.ok) {
+      throw new Error(`Config updated but git commit failed: ${commitResult.stderr.trim()}`);
+    }
   }
 
   getTasks() {
@@ -512,4 +580,37 @@ async function fileExists(filePath) {
   } catch {
     return false;
   }
+}
+
+function toGitPath(filePath) {
+  return filePath.split(path.sep).join("/");
+}
+
+async function runCommand(command, args) {
+  return new Promise((resolve) => {
+    const child = spawn(command, args, {
+      cwd: process.cwd(),
+      stdio: ["ignore", "pipe", "pipe"],
+    });
+
+    let stdout = "";
+    let stderr = "";
+
+    child.stdout.on("data", (chunk) => {
+      stdout += chunk.toString();
+    });
+
+    child.stderr.on("data", (chunk) => {
+      stderr += chunk.toString();
+    });
+
+    child.on("close", (code) => {
+      resolve({
+        ok: code === 0,
+        code,
+        stdout,
+        stderr,
+      });
+    });
+  });
 }
