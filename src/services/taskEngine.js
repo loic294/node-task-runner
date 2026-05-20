@@ -261,7 +261,11 @@ export class TaskEngine {
       await this.commitTaskConfigChange(taskId, task.configPath);
     } catch (error) {
       await fsp.writeFile(task.configPath, yaml.dump(previousConfig), "utf8");
-      await runCommand("git", ["add", "--", toGitPath(path.relative(process.cwd(), task.configPath))]);
+      await runCommand("git", [
+        "add",
+        "--",
+        toGitPath(path.relative(process.cwd(), task.configPath)),
+      ]);
       throw error;
     }
 
@@ -290,7 +294,9 @@ export class TaskEngine {
 
     const addResult = await runCommand("git", ["add", "--", gitPath]);
     if (!addResult.ok) {
-      throw new Error(`Config updated but failed to stage file: ${addResult.stderr.trim()}`);
+      throw new Error(
+        `Config updated but failed to stage file: ${addResult.stderr.trim()}`,
+      );
     }
 
     const stagedDiffResult = await runCommand("git", [
@@ -320,7 +326,9 @@ export class TaskEngine {
     ]);
 
     if (!commitResult.ok) {
-      throw new Error(`Config updated but git commit failed: ${commitResult.stderr.trim()}`);
+      throw new Error(
+        `Config updated but git commit failed: ${commitResult.stderr.trim()}`,
+      );
     }
   }
 
