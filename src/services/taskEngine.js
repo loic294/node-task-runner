@@ -4,6 +4,7 @@ import path from "node:path";
 import { spawn } from "node:child_process";
 import yaml from "js-yaml";
 import cron from "node-cron";
+import cronParser from "cron-parser";
 import { v4 as uuidv4 } from "uuid";
 
 export class TaskEngine {
@@ -248,10 +249,32 @@ export class TaskEngine {
     const tasks = [...this.tasks.values()].map((task) => ({
       ...task,
       runningCount: this.runningCounts.get(task.id) || 0,
+      nextRunAt: task.configError ? null : this.getNextRunAt(task.schedule),
     }));
 
     tasks.sort((a, b) => a.id.localeCompare(b.id));
     return tasks;
+  }
+
+  getNextRunAt(schedule) {
+    if (!schedule || !cron.validate(schedule)) {
+      return null;
+    }
+
+    try {
+      const parser = cronParser.CronExpressionParser || cronParser;
+      const interval = parser.parse(schedule);
+      const next = interval.next();
+      const nextDate = typeof next.toDate === "function" ? next.toDate() : next;
+
+      if (!(nextDate instanceof Date) || Number.isNaN(nextDate.getTime())) {
+        return null;
+      }
+
+      return nextDate.toISOString();
+    } catch {
+      return null;
+    }
   }
 
   async getRuns(taskId) {

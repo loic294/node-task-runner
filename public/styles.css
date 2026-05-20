@@ -247,12 +247,17 @@ input {
 .badge.success {
   color: var(--success);
   background: #e7f9ef;
+  text-transform: uppercase;
 }
 
 .badge.failed,
 .badge.timeout {
   color: var(--error);
   background: #fde8e8;
+}
+
+.badge.failed {
+  text-transform: uppercase;
 }
 
 .badge.running {
@@ -263,6 +268,43 @@ input {
 .badge.idle {
   color: #475569;
   background: #eff4fb;
+}
+
+.status-with-popover {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.status-popover {
+  position: absolute;
+  left: 0;
+  top: calc(100% + 8px);
+  min-width: 320px;
+  max-width: 420px;
+  background: #111827;
+  color: #f9fafb;
+  border: 1px solid #374151;
+  padding: 12px 14px;
+  font-size: 0.92rem;
+  line-height: 1.55;
+  box-shadow: 0 8px 18px rgba(17, 24, 39, 0.25);
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(-4px);
+  transition:
+    opacity 120ms ease,
+    transform 120ms ease,
+    visibility 120ms ease;
+  pointer-events: none;
+  z-index: 3;
+}
+
+.status-with-popover:hover .status-popover,
+.status-with-popover:focus-within .status-popover {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
 }
 
 .card-actions {

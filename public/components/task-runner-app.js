@@ -370,8 +370,26 @@ class TaskRunnerApp extends HTMLElement {
     if (task.runningCount > 0) {
       return '<span class="badge running">running</span>';
     }
+
     const status = task.lastRunStatus || "idle";
-    return `<span class="badge ${status}">${status}</span>`;
+    const hasHistoryPopover = ["success", "failed", "timeout"].includes(status);
+
+    if (!hasHistoryPopover) {
+      return `<span class="badge ${status}">${status}</span>`;
+    }
+
+    const lastSuccess = escapeHtml(this.formatDate(task.lastSuccessfulRun));
+    const lastRun = escapeHtml(this.formatDate(task.lastRunAt));
+
+    return `
+      <span class="status-with-popover">
+        <span class="badge ${status}">${status}</span>
+        <span class="status-popover" role="tooltip">
+          <strong>Last success:</strong> ${lastSuccess}<br />
+          <strong>Last run:</strong> ${lastRun}
+        </span>
+      </span>
+    `;
   }
 
   formatDate(value) {
@@ -383,6 +401,39 @@ class TaskRunnerApp extends HTMLElement {
       return "-";
     }
     return d.toLocaleString();
+  }
+
+  formatNextRun(value) {
+    if (!value) {
+      return "-";
+    }
+
+    const target = new Date(value);
+    if (Number.isNaN(target.getTime())) {
+      return "-";
+    }
+
+    const now = new Date();
+    const diffMs = target.getTime() - now.getTime();
+    const absMs = Math.abs(diffMs);
+    const minuteMs = 60 * 1000;
+    const hourMs = 60 * minuteMs;
+    const dayMs = 24 * hourMs;
+    let unit = "minute";
+    let amount = Math.round(diffMs / minuteMs);
+
+    if (absMs >= dayMs) {
+      unit = "day";
+      amount = Math.round(diffMs / dayMs);
+    } else if (absMs >= hourMs) {
+      unit = "hour";
+      amount = Math.round(diffMs / hourMs);
+    }
+
+    const formatter = new Intl.RelativeTimeFormat(undefined, {
+      numeric: "auto",
+    });
+    return formatter.format(amount, unit);
   }
 
   toggleEdit(taskId) {
@@ -439,8 +490,7 @@ class TaskRunnerApp extends HTMLElement {
         </div>
         <p class="meta">Folder: ${task.id}</p>
         <p class="meta">Status: ${this.statusBadge(task)}</p>
-        <p class="meta">Last success: ${this.formatDate(task.lastSuccessfulRun)}</p>
-        <p class="meta">Last run: ${this.formatDate(task.lastRunAt)}</p>
+        <p class="meta"><b>Next run:</b> ${this.formatNextRun(task.nextRunAt)}</p>
         <div class="card-actions">
           <button class="primary run">${renderIcon("play")}<span>Run now</span></button>
           <a class="button-link action-link" href="#/tasks/${task.id}/runs">${renderIcon("list")}<span>View runs</span></a>
