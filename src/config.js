@@ -7,8 +7,20 @@ function resolveDir(value, fallback) {
   return path.resolve(value || fallback);
 }
 
+function getLocalTimezone() {
+  try {
+    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    if (typeof tz === "string" && tz.trim()) {
+      return tz;
+    }
+  } catch {}
+
+  return "UTC";
+}
+
 export const config = {
   port: Number.parseInt(process.env.PORT || "3000", 10),
+  scheduleTimezone: process.env.TASK_TIMEZONE || getLocalTimezone(),
   tasksDir: resolveDir(
     process.env.TASKS_DIR,
     path.join(rootDir, "volumes", "tasks"),

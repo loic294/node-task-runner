@@ -95,6 +95,7 @@ services:
 			DATA_DIR: /app/volumes/data
 			DISCOVERY_INTERVAL_MS: "30000"
 			RETENTION_DAYS: "90"
+			TASK_TIMEZONE: "America/Los_Angeles"
 			MAX_LOG_BYTES: "200000"
 			TASK_TIMEOUT_MS: "0"
 		volumes:

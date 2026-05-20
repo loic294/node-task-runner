@@ -187,19 +187,30 @@ export class TaskEngine {
 
   syncJob(taskId, schedule) {
     const current = this.jobs.get(taskId);
-    if (current && current.schedule === schedule) {
+    if (
+      current &&
+      current.schedule === schedule &&
+      current.timezone === this.config.scheduleTimezone
+    ) {
       return;
     }
 
     this.removeJob(taskId);
 
-    const job = cron.schedule(schedule, async () => {
-      try {
-        await this.runTask(taskId, "schedule");
-      } catch {}
-    });
+    const job = cron.schedule(
+      schedule,
+      async () => {
+        try {
+          await this.runTask(taskId, "schedule");
+        } catch {}
+      },
+      {
+        timezone: this.config.scheduleTimezone,
+      },
+    );
 
     job.schedule = schedule;
+    job.timezone = this.config.scheduleTimezone;
     this.jobs.set(taskId, job);
   }
 
@@ -263,7 +274,9 @@ export class TaskEngine {
 
     try {
       const parser = cronParser.CronExpressionParser || cronParser;
-      const interval = parser.parse(schedule);
+      const interval = parser.parse(schedule, {
+        tz: this.config.scheduleTimezone,
+      });
       const next = interval.next();
       const nextDate = typeof next.toDate === "function" ? next.toDate() : next;
 
