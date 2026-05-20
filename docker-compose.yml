@@ -14,7 +14,7 @@ services:
       TASK_TIMEZONE: "America/Los_Angeles"
       TASK_TIMEOUT_MS: "0"
     volumes:
-      - ./volumes/tasks:/app/volumes/tasks:ro
+      - ./volumes/tasks:/app/volumes/tasks
       - ./volumes/logs:/app/volumes/logs
       - ./volumes/data:/app/volumes/data
     restart: unless-stopped

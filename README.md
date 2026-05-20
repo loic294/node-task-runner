@@ -99,7 +99,7 @@ services:
 			MAX_LOG_BYTES: "200000"
 			TASK_TIMEOUT_MS: "0"
 		volumes:
-			- ./volumes/tasks:/app/volumes/tasks:ro
+			- ./volumes/tasks:/app/volumes/tasks
 			- ./volumes/logs:/app/volumes/logs
 			- ./volumes/data:/app/volumes/data
 		restart: unless-stopped
