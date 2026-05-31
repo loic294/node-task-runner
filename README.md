@@ -31,6 +31,10 @@ volumes/tasks/example-task/
 # volumes/tasks/example-task/config.yaml
 name: Example task
 schedule: "*/5 * * * *"
+# Optional: re-run the task up to `retries` extra times after a failure,
+# waiting `retryDelaySeconds` between attempts.
+retries: 0
+retryDelaySeconds: 0
 ```
 
 ```js

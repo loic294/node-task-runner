@@ -99,9 +99,28 @@ export class TaskEngine {
       throw new Error("config.yaml has invalid cron schedule");
     }
 
+    const retries = normalizeNonNegativeInt(parsed.retries, 0);
+    if (retries === null) {
+      throw new Error(
+        "config.yaml has invalid retries (must be a non-negative integer)",
+      );
+    }
+
+    const retryDelaySeconds = normalizeNonNegativeInt(
+      parsed.retryDelaySeconds,
+      0,
+    );
+    if (retryDelaySeconds === null) {
+      throw new Error(
+        "config.yaml has invalid retryDelaySeconds (must be a non-negative integer)",
+      );
+    }
+
     return {
       name,
       schedule,
+      retries,
+      retryDelaySeconds,
       configPath,
       scriptPath,
     };
@@ -137,6 +156,8 @@ export class TaskEngine {
           scriptPath: config.scriptPath,
           name: config.name,
           schedule: config.schedule,
+          retries: config.retries,
+          retryDelaySeconds: config.retryDelaySeconds,
           lastRunAt: existing?.lastRunAt || null,
           lastRunStatus: existing?.lastRunStatus || null,
           lastSuccessfulRun: existing?.lastSuccessfulRun || null,
@@ -239,8 +260,38 @@ export class TaskEngine {
       throw new Error("Invalid cron schedule");
     }
 
+    const currentRetries = Number.isFinite(task.retries) ? task.retries : 0;
+    const currentRetryDelay = Number.isFinite(task.retryDelaySeconds)
+      ? task.retryDelaySeconds
+      : 0;
+
+    const nextRetries =
+      payload.retries === undefined ||
+      payload.retries === null ||
+      payload.retries === ""
+        ? currentRetries
+        : normalizeNonNegativeInt(payload.retries, currentRetries);
+    if (nextRetries === null) {
+      throw new Error("Invalid retries (must be a non-negative integer)");
+    }
+
+    const nextRetryDelaySeconds =
+      payload.retryDelaySeconds === undefined ||
+      payload.retryDelaySeconds === null ||
+      payload.retryDelaySeconds === ""
+        ? currentRetryDelay
+        : normalizeNonNegativeInt(payload.retryDelaySeconds, currentRetryDelay);
+    if (nextRetryDelaySeconds === null) {
+      throw new Error(
+        "Invalid retryDelaySeconds (must be a non-negative integer)",
+      );
+    }
+
     const hasConfigChange =
-      task.name !== nextName || task.schedule !== nextSchedule;
+      task.name !== nextName ||
+      task.schedule !== nextSchedule ||
+      currentRetries !== nextRetries ||
+      currentRetryDelay !== nextRetryDelaySeconds;
     if (!hasConfigChange) {
       return { ...task };
     }
@@ -248,11 +299,15 @@ export class TaskEngine {
     const previousConfig = {
       name: task.name,
       schedule: task.schedule,
+      retries: currentRetries,
+      retryDelaySeconds: currentRetryDelay,
     };
 
     const data = {
       name: nextName,
       schedule: nextSchedule,
+      retries: nextRetries,
+      retryDelaySeconds: nextRetryDelaySeconds,
     };
 
     await fsp.writeFile(task.configPath, yaml.dump(data), "utf8");
@@ -271,6 +326,8 @@ export class TaskEngine {
 
     task.name = nextName;
     task.schedule = nextSchedule;
+    task.retries = nextRetries;
+    task.retryDelaySeconds = nextRetryDelaySeconds;
     task.configError = null;
 
     this.syncJob(taskId, nextSchedule);
@@ -404,7 +461,7 @@ export class TaskEngine {
     await this.saveRuns(taskId, runs);
   }
 
-  async runTask(taskId, triggeredBy = "manual") {
+  async runTask(taskId, triggeredBy = "manual", options = {}) {
     const task = this.tasks.get(taskId);
     if (!task) {
       throw new Error("Task not found");
@@ -413,6 +470,17 @@ export class TaskEngine {
     if (task.configError) {
       throw new Error("Task config is invalid");
     }
+
+    const attempt = Number.isInteger(options.attempt) ? options.attempt : 1;
+    const configuredRetries = Number.isFinite(task.retries) ? task.retries : 0;
+    const maxAttempts = Math.max(1, configuredRetries + 1);
+    const retryDelayMs = Math.max(
+      0,
+      (Number.isFinite(task.retryDelaySeconds) ? task.retryDelaySeconds : 0) *
+        1000,
+    );
+    const originalRunId =
+      typeof options.originalRunId === "string" ? options.originalRunId : null;
 
     const runId = uuidv4();
     const taskLogDir = path.join(this.config.logsDir, taskId);
@@ -431,6 +499,9 @@ export class TaskEngine {
       exitCode: null,
       triggeredBy,
       logFile,
+      attempt,
+      maxAttempts,
+      originalRunId: originalRunId || runId,
     };
 
     await this.appendRun(taskId, run);
@@ -506,6 +577,17 @@ export class TaskEngine {
         }
 
         logStream.end();
+
+        if (status !== "success" && attempt < maxAttempts) {
+          const nextAttempt = attempt + 1;
+          setTimeout(() => {
+            this.runTask(taskId, "retry", {
+              attempt: nextAttempt,
+              originalRunId: originalRunId || runId,
+            }).catch(() => {});
+          }, retryDelayMs);
+        }
+
         resolve();
       });
     });
@@ -592,6 +674,17 @@ async function fileExists(filePath) {
 
 function toGitPath(filePath) {
   return filePath.split(path.sep).join("/");
+}
+
+function normalizeNonNegativeInt(value, fallback) {
+  if (value === undefined || value === null || value === "") {
+    return fallback;
+  }
+  const n = typeof value === "number" ? value : Number(value);
+  if (!Number.isFinite(n) || !Number.isInteger(n) || n < 0) {
+    return null;
+  }
+  return n;
 }
 
 async function runCommand(command, args) {

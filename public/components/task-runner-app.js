@@ -379,6 +379,8 @@ class TaskRunnerApp extends HTMLElement {
   async saveTask(taskId, card) {
     const nameInput = card.querySelector('[name="name"]');
     const scheduleInput = card.querySelector('[name="schedule"]');
+    const retriesInput = card.querySelector('[name="retries"]');
+    const retryDelayInput = card.querySelector('[name="retryDelaySeconds"]');
     const button = card.querySelector("button.save");
 
     button.disabled = true;
@@ -392,6 +394,10 @@ class TaskRunnerApp extends HTMLElement {
         body: JSON.stringify({
           name: nameInput.value,
           schedule: scheduleInput.value,
+          retries: retriesInput ? Number(retriesInput.value) : undefined,
+          retryDelaySeconds: retryDelayInput
+            ? Number(retryDelayInput.value)
+            : undefined,
         }),
       });
 
@@ -524,11 +530,22 @@ class TaskRunnerApp extends HTMLElement {
             <input name="name" value="${escapeHtml(task.name)}" />
             <label class="meta">Cron schedule</label>
             <input name="schedule" value="${escapeHtml(task.schedule)}" />
+            <label class="meta">Retries on failure</label>
+            <input name="retries" type="number" min="0" step="1" value="${Number(task.retries) || 0}" />
+            <label class="meta">Retry delay (seconds)</label>
+            <input name="retryDelaySeconds" type="number" min="0" step="1" value="${Number(task.retryDelaySeconds) || 0}" />
             <button class="save primary" type="button">${renderIcon("save")}<span>Save</span></button>
           </div>
         </article>
       `;
     }
+
+    const retries = Number(task.retries) || 0;
+    const retryDelay = Number(task.retryDelaySeconds) || 0;
+    const retryMeta =
+      retries > 0
+        ? `<p class="meta"><b>Retries:</b> ${retries} (every ${retryDelay}s)</p>`
+        : "";
 
     return `
       <article class="card" data-task-id="${task.id}">
@@ -539,6 +556,7 @@ class TaskRunnerApp extends HTMLElement {
         <p class="meta"><b>Folder:</b> ${task.id}</p>
         <p class="meta"><b>Status:</b> ${this.statusBadge(task)}</p>
         <p class="meta"><b>Next run:</b> ${this.formatNextRun(task.nextRunAt)}</p>
+        ${retryMeta}
         <div class="card-actions">
           <button class="primary run">${renderIcon("play")}<span>Run now</span></button>
           <a class="button-link action-link" href="#/tasks/${task.id}/runs">${renderIcon("list")}<span>View runs</span></a>
@@ -602,7 +620,7 @@ class TaskRunnerApp extends HTMLElement {
               <td>${run.status}</td>
               <td>${this.formatDate(run.startedAt)}</td>
               <td>${run.durationMs ?? "-"}</td>
-              <td>${run.triggeredBy}</td>
+              <td>${run.triggeredBy}${run.maxAttempts > 1 ? ` (${run.attempt || 1}/${run.maxAttempts})` : ""}</td>
             </tr>
           `,
         )
@@ -685,7 +703,7 @@ class TaskRunnerApp extends HTMLElement {
             <p class="meta">Status: <span id="runStatus"><span class="badge ${run.status}">${run.status}</span></span></p>
             <p class="meta">Started: <span id="runStarted">${this.formatDate(run.startedAt)}</span></p>
             <p class="meta">Completed: <span id="runCompleted">${this.formatDate(run.completedAt)}</span></p>
-            <p class="meta">Trigger: <span id="runTrigger">${run.triggeredBy}</span></p>
+            <p class="meta">Trigger: <span id="runTrigger">${run.triggeredBy}${run.maxAttempts > 1 ? ` (attempt ${run.attempt || 1} of ${run.maxAttempts})` : ""}</span></p>
           </section>
           <section class="run-detail-logs">
             <pre id="runLog">${escapeHtml(payload.content || "")}</pre>
